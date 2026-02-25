@@ -824,11 +824,6 @@ class SerialTool(QMainWindow):
         self.pause_display_cb = QCheckBox("暂停显示")
         control_layout.addWidget(self.pause_display_cb)
         
-        self.word_wrap_cb = QCheckBox("自动换行")
-        self.word_wrap_cb.setChecked(True)
-        self.word_wrap_cb.stateChanged.connect(self.on_word_wrap_changed)
-        control_layout.addWidget(self.word_wrap_cb)
-        
         self.auto_scroll_cb = QCheckBox("自动滚屏")
         self.auto_scroll_cb.setChecked(True)
         control_layout.addWidget(self.auto_scroll_cb)
@@ -903,6 +898,8 @@ class SerialTool(QMainWindow):
         # 接收文本框 - 使用自定义的文本浏览器
         self.receive_text = CustomTextBrowser()
         self.receive_text.setFont(QFont("Consolas", self.font_size))
+        # 默认启用自动换行（自动换行功能已从界面移除）
+        self.receive_text.setLineWrapMode(QTextEdit.WidgetWidth)
         
         # 连接文本选中信号 - 已注释，禁用鼠标选中自动高亮功能
         # self.receive_text.text_selected.connect(self.on_text_selected)
@@ -1578,12 +1575,7 @@ class SerialTool(QMainWindow):
         else:
             self.repeat_timer.stop()
             
-    def on_word_wrap_changed(self, state):
-        """自动换行状态改变"""
-        if state == Qt.Checked:
-            self.receive_text.setLineWrapMode(QTextEdit.WidgetWidth)
-        else:
-            self.receive_text.setLineWrapMode(QTextEdit.NoWrap)
+    # 自动换行功能已移除
             
     def get_baudrate(self):
         """获取波特率"""
@@ -1896,7 +1888,6 @@ class SerialTool(QMainWindow):
         
         时间戳: {'开启' if self.timestamp_cb.isChecked() else '关闭'}
         十六进制显示: {'开启' if self.hex_display_cb.isChecked() else '关闭'}
-        自动换行: {'开启' if self.word_wrap_cb.isChecked() else '关闭'}
         自动滚屏: {'开启' if self.auto_scroll_cb.isChecked() else '关闭'}
         配置区域: {'显示' if self.config_visible else '隐藏'}
         字体大小: {self.font_size} pt
