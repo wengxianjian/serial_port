@@ -1726,8 +1726,10 @@ class SerialTool(QMainWindow):
         scrollbar = self.receive_text.verticalScrollBar()
         scroll_position = scrollbar.value() if scrollbar else 0
         
-        # 添加到显示区域
-        self.receive_text.append(display_text)
+        # 添加到显示区域 - 使用insertPlainText避免自动添加换行符，只保留数据本身的换行
+        cursor = self.receive_text.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertText(display_text)
         
         # 如果有搜索文本，重新应用高亮
         if self.search_text:
