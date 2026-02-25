@@ -2426,7 +2426,7 @@ class SerialTool(QMainWindow):
     def show_about(self):
         """显示关于对话框"""
         about_text = """
-        <h3 style="color: #cccccc;">串口工具(精简版) v1.2</h3>
+        <h3 style="color: #cccccc;">串口工具(精简版) v1.3</h3>
         <p style="color: #aaaaaa;">轻量级串口调试助手，支持缓冲区设置和界面控制。</p>
         <p style="color: #cccccc;"><b>主要功能:</b></p>
         <ul style="color: #aaaaaa;">
@@ -2441,7 +2441,8 @@ class SerialTool(QMainWindow):
             <li>图标支持（支持.ico文件）</li>
             <li>字体大小调节（8-24pt，默认12pt）</li>
             <li><b>日志查找和高亮功能</b></li>
-            <li>简洁暗黑主题，护眼设计</li>
+            <li><b>多种字体选择（Consolas、Monaco等）</b></li>
+            <li><b>主题切换（暗黑主题/浅色主题）</b></li>
         </ul>
         <p style="color: #cccccc;"><b>搜索功能:</b></p>
         <ul style="color: #aaaaaa;">
@@ -2451,6 +2452,19 @@ class SerialTool(QMainWindow):
             <li>支持高亮所有匹配项</li>
             <li>选中文本自动填充到搜索框</li>
             <li>显示搜索结果数量</li>
+        </ul>
+        <p style="color: #cccccc;"><b>字体设置:</b></p>
+        <ul style="color: #aaaaaa;">
+            <li>支持6种常用等宽字体</li>
+            <li>字体大小可调（8-24pt）</li>
+            <li>字体设置实时生效</li>
+        </ul>
+        <p style="color: #cccccc;"><b>主题切换:</b></p>
+        <ul style="color: #aaaaaa;">
+            <li>暗黑主题（默认）</li>
+            <li>浅色主题</li>
+            <li>主题切换实时生效</li>
+            <li>所有UI元素自动适配主题</li>
         </ul>
         <p style="color: #cccccc;"><b>图标使用:</b></p>
         <ul style="color: #aaaaaa;">
@@ -2466,7 +2480,7 @@ class SerialTool(QMainWindow):
             <li>实时统计和缓冲区信息（字节单位）</li>
         </ul>
         <p style="color: #888888;">开发者: 串口工具(精简版)</p>
-        <p style="color: #888888;">版本: 1.2.0</p>
+        <p style="color: #888888;">版本: 1.3.0</p>
         """
         
         msg_box = QMessageBox()
