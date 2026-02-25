@@ -28,24 +28,123 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QMenu, QAction, QTextBrowser, QSplitter, QToolBar,
                             QFrame, QSizePolicy, QDialog, QDialogButtonBox,
                             QFormLayout)
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread, QMutex, QMutexLocker, QSize, QRegularExpression
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread, QMutex, QMutexLocker, QSize, QRegularExpression, QPoint
 from PyQt5.QtGui import (QFont, QPalette, QColor, QTextCursor, QIcon, QFontDatabase,
-                        QTextCharFormat, QSyntaxHighlighter, QBrush, QTextDocument)
+                        QTextCharFormat, QSyntaxHighlighter, QBrush, QTextDocument,
+                        QPainter, QFontMetrics)
 
 
 import serial
 import serial.tools.list_ports
 
 
+class LineNumberArea(QWidget):
+    """行号显示区域"""
+    def __init__(self, text_browser):
+        super().__init__(text_browser)
+        self.text_browser = text_browser
+        self.setFixedWidth(50)  # 默认行号宽度
+        
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(event.rect(), QColor("#2d2d2d"))  # 行号背景色
+        
+        # 获取字体和颜色
+        font = self.text_browser.font()
+        painter.setFont(font)
+        painter.setPen(QColor("#808080"))  # 行号文字颜色
+        
+        # 获取视口
+        viewport = self.text_browser.viewport()
+        scrollbar = self.text_browser.verticalScrollBar()
+        offset = scrollbar.value()
+        
+        # 获取第一行的位置
+        cursor = self.text_browser.cursorForPosition(QPoint(0, 0))
+        block = cursor.block()
+        block_number = block.blockNumber() + 1  # 行号从1开始
+        
+        # 计算行高
+        fm = QFontMetrics(font)
+        line_height = fm.height()
+        
+        # 获取当前块的顶部位置
+        top = self.text_browser.document().documentLayout().blockBoundingRect(block).top() - offset
+        bottom = top + line_height
+        
+        # 绘制可见区域的行号
+        while block.isValid() and top <= event.rect().bottom():
+            if block.isVisible() and bottom >= event.rect().top():
+                painter.drawText(0, int(top), self.width() - 5, line_height, 
+                               Qt.AlignRight, str(block_number))
+            
+            block = block.next()
+            top = bottom
+            bottom = top + line_height
+            block_number += 1
+    
+    def update_width(self):
+        """更新行号区域宽度"""
+        # 计算最大行号所需宽度
+        lines = self.text_browser.document().blockCount()
+        fm = QFontMetrics(self.text_browser.font())
+        width = fm.width(str(lines)) + 20  # 加一些边距
+        self.setFixedWidth(max(width, 40))  # 最小宽度40
+    
+    def update_area(self, rect, dy):
+        """更新行号区域"""
+        if dy:
+            self.scroll(0, dy)
+        else:
+            self.update(0, rect.y(), self.width(), rect.height())
+        
+        if rect.contains(self.text_browser.viewport().rect()):
+            self.update_width()
+
+
 class CustomTextBrowser(QTextBrowser):
-    """自定义文本浏览器，修复文本选择问题"""
+    """自定义文本浏览器，修复文本选择问题，支持行号显示"""
     text_selected = pyqtSignal(str)  # 自定义信号，用于传递选中的文本
     selection_cleared = pyqtSignal()  # 自定义信号，当选择被清除时触发
+    line_number_area = None
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.last_selection = ""
         self.last_has_selection = False  # 记录上次是否有选择
+        self.line_number_visible = False
+        
+        # 连接信号用于更新行号
+        self.verticalScrollBar().valueChanged.connect(self.update_line_numbers)
+        self.textChanged.connect(self.update_line_numbers)
+    
+    def set_line_number_visible(self, visible):
+        """设置行号是否可见"""
+        self.line_number_visible = visible
+        if visible and not self.line_number_area:
+            self.line_number_area = LineNumberArea(self)
+            # 设置视口边距以显示行号
+            self.setViewportMargins(self.line_number_area.width(), 0, 0, 0)
+            self.line_number_area.show()
+        elif not visible and self.line_number_area:
+            self.line_number_area.hide()
+            self.setViewportMargins(0, 0, 0, 0)
+            self.line_number_area = None
+        self.update_line_numbers()
+    
+    def resizeEvent(self, event):
+        """重写resizeEvent，调整行号区域大小"""
+        super().resizeEvent(event)
+        if self.line_number_area:
+            cr = self.contentsRect()
+            self.line_number_area.setGeometry(cr.left(), cr.top(), 
+                                            self.line_number_area.width(), cr.height())
+    
+    def update_line_numbers(self):
+        """更新行号显示"""
+        if self.line_number_area:
+            self.line_number_area.update_width()
+            self.line_number_area.update(0, 0, self.line_number_area.width(), self.height())
         
     def mouseReleaseEvent(self, event):
         """鼠标释放事件，处理文本选择"""
@@ -824,6 +923,11 @@ class SerialTool(QMainWindow):
         self.pause_display_cb = QCheckBox("暂停显示")
         control_layout.addWidget(self.pause_display_cb)
         
+        self.line_numbers_cb = QCheckBox("显示行号")
+        self.line_numbers_cb.setChecked(False)
+        self.line_numbers_cb.stateChanged.connect(self.on_line_numbers_changed)
+        control_layout.addWidget(self.line_numbers_cb)
+        
         self.auto_scroll_cb = QCheckBox("自动滚屏")
         self.auto_scroll_cb.setChecked(True)
         control_layout.addWidget(self.auto_scroll_cb)
@@ -1541,6 +1645,9 @@ class SerialTool(QMainWindow):
             }}
         """)
         
+        # 更新行号显示
+        self.receive_text.update_line_numbers()
+        
     def refresh_ports(self):
         """刷新可用串口"""
         current_port = self.port_combo.currentText()
@@ -1576,7 +1683,11 @@ class SerialTool(QMainWindow):
             self.repeat_timer.stop()
             
     # 自动换行功能已移除
-            
+    
+    def on_line_numbers_changed(self, state):
+        """行号显示状态改变"""
+        self.receive_text.set_line_number_visible(state == Qt.Checked)
+    
     def get_baudrate(self):
         """获取波特率"""
         if self.baudrate_combo.currentText() == "自定义":
@@ -1815,6 +1926,9 @@ class SerialTool(QMainWindow):
         # 更新缓冲区信息
         max_buffer_size = self.buffer_settings.get('receive_buffer', 1024 * 1024)  # 1MB
         self.buffer_stats_label.setText(f"缓冲区: 0/{max_buffer_size} 字节")
+        
+        # 更新行号显示
+        self.receive_text.update_line_numbers()
         
     def save_receive_data(self):
         """保存接收数据"""
