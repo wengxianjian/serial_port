@@ -44,15 +44,27 @@ class LineNumberArea(QWidget):
         super().__init__(text_browser)
         self.text_browser = text_browser
         self.setFixedWidth(50)  # 默认行号宽度
+        self.current_theme = "dark"  # 默认主题
+        
+    def set_theme(self, theme):
+        """设置主题"""
+        self.current_theme = theme
+        self.update()  # 触发重绘
         
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.fillRect(event.rect(), QColor("#2d2d2d"))  # 行号背景色
         
-        # 获取字体和颜色
+        # 根据主题设置行号背景色和文字颜色
+        if self.current_theme == "dark":
+            painter.fillRect(event.rect(), QColor("#2d2d2d"))  # 暗黑主题行号背景色
+            painter.setPen(QColor("#808080"))  # 暗黑主题行号文字颜色
+        else:
+            painter.fillRect(event.rect(), QColor("#e0e0e0"))  # 浅色主题行号背景色
+            painter.setPen(QColor("#808080"))  # 浅色主题行号文字颜色
+        
+        # 获取字体
         font = self.text_browser.font()
         painter.setFont(font)
-        painter.setPen(QColor("#808080"))  # 行号文字颜色
         
         # 获取视口
         viewport = self.text_browser.viewport()
@@ -131,6 +143,11 @@ class CustomTextBrowser(QTextBrowser):
             self.setViewportMargins(0, 0, 0, 0)
             self.line_number_area = None
         self.update_line_numbers()
+    
+    def set_theme(self, theme):
+        """设置主题"""
+        if self.line_number_area:
+            self.line_number_area.set_theme(theme)
     
     def resizeEvent(self, event):
         """重写resizeEvent，调整行号区域大小"""
@@ -1697,6 +1714,9 @@ class SerialTool(QMainWindow):
                     
                     # 更新字体设置以匹配新主题
                     self.apply_font_settings()
+                    
+                    # 更新行号区域主题
+                    self.receive_text.set_theme(new_theme)
                     
                     # 更新接收控制栏样式
                     if new_theme == "dark":
