@@ -539,7 +539,8 @@ class SerialTool(QMainWindow):
         # 配置区域显示状态
         self.config_visible = True
         
-        # 字体大小设置 - 改为默认12pt
+        # 字体设置
+        self.font_name = "Consolas"  # 默认字体
         self.font_size = 12  # 默认字体大小改为12pt
         
         # 搜索相关变量
@@ -1491,35 +1492,40 @@ class SerialTool(QMainWindow):
         """设置菜单栏"""
         menubar = self.menuBar()
         
-        # 文件菜单
-        file_menu = menubar.addMenu("文件")
-        
-        # 保存接收数据
-        save_rx_action = QAction("保存接收数据", self)
-        save_rx_action.triggered.connect(self.save_receive_data)
-        file_menu.addAction(save_rx_action)
-        
-        file_menu.addSeparator()
-        
-        # 退出
-        exit_action = QAction("退出", self)
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-        
         # 视图菜单
         view_menu = menubar.addMenu("视图")
         
-        # 显示/隐藏配置区域
-        toggle_config_menu_action = QAction("显示配置区域", self)
-        toggle_config_menu_action.setCheckable(True)
-        toggle_config_menu_action.setChecked(True)
-        toggle_config_menu_action.triggered.connect(self.toggle_config_area)
-        view_menu.addAction(toggle_config_menu_action)
+        # 字体菜单
+        font_menu = view_menu.addMenu("字体")
         
-        # 字体大小菜单
-        font_menu = view_menu.addMenu("字体大小")
+        # 字体名称子菜单
+        font_name_menu = font_menu.addMenu("字体名称")
         
-        # 存储字体动作列表，以便后续管理
+        # 存储字体名称动作列表
+        self.font_name_actions = []
+        
+        # 常用字体选项
+        font_names = ["Consolas", "Monaco", "Courier New", "Source Code Pro", "Roboto Mono", "Fira Code"]
+        for font in font_names:
+            font_action = QAction(font, self)
+            font_action.setData(font)
+            font_action.setCheckable(True)
+            
+            # 设置当前默认字体选中状态
+            if font == self.font_name:
+                font_action.setChecked(True)
+            
+            # 连接信号
+            font_action.triggered.connect(self.on_font_name_changed)
+            
+            # 添加到菜单和列表
+            font_name_menu.addAction(font_action)
+            self.font_name_actions.append(font_action)
+        
+        # 字体大小子菜单
+        font_size_menu = font_menu.addMenu("字体大小")
+        
+        # 存储字体大小动作列表
         self.font_actions = []
         
         # 字体大小选项
@@ -1537,7 +1543,7 @@ class SerialTool(QMainWindow):
             font_action.triggered.connect(self.on_font_size_changed)
             
             # 添加到菜单和列表
-            font_menu.addAction(font_action)
+            font_size_menu.addAction(font_action)
             self.font_actions.append(font_action)
         
         # 编辑菜单
@@ -1571,20 +1577,10 @@ class SerialTool(QMainWindow):
         # 设置菜单
         settings_menu = menubar.addMenu("设置")
         
-        # 串口设置
-        serial_settings_action = QAction("串口设置", self)
-        serial_settings_action.triggered.connect(self.show_serial_settings)
-        settings_menu.addAction(serial_settings_action)
-        
         # 缓冲区设置
         buffer_settings_action = QAction("缓冲区设置", self)
         buffer_settings_action.triggered.connect(self.show_buffer_settings)
         settings_menu.addAction(buffer_settings_action)
-        
-        # 显示设置
-        display_settings_action = QAction("显示设置", self)
-        display_settings_action.triggered.connect(self.show_display_settings)
-        settings_menu.addAction(display_settings_action)
         
         # 帮助菜单
         help_menu = menubar.addMenu("帮助")
@@ -1609,44 +1605,98 @@ class SerialTool(QMainWindow):
         self.current_search_index = 0
         self.first_click = True
         
+    def on_font_name_changed(self):
+        """字体名称改变"""
+        try:
+            action = self.sender()
+            if action and action.isChecked():
+                new_font = action.data()
+                if new_font and new_font != self.font_name:
+                    # 清除所有字体名称选项的选中状态
+                    for act in self.font_name_actions:
+                        act.setChecked(False)
+                    
+                    # 设置当前选项为选中状态
+                    action.setChecked(True)
+                    
+                    # 更新字体名称
+                    self.font_name = new_font
+                    self.apply_font_settings()
+        except Exception as e:
+            print(f"字体名称改变错误: {e}")
+    
     def on_font_size_changed(self):
         """字体大小改变"""
-        action = self.sender()
-        if action and action.isChecked():
-            new_size = action.data()
-            if new_size != self.font_size:
-                # 清除所有字体选项的选中状态
-                for act in self.font_actions:
-                    act.setChecked(False)
-                
-                # 设置当前选项为选中状态
-                action.setChecked(True)
-                
-                # 更新字体大小
-                self.font_size = new_size
-                self.apply_font_size()
+        try:
+            action = self.sender()
+            if action and action.isChecked():
+                new_size = action.data()
+                if new_size is not None and new_size != self.font_size:
+                    # 清除所有字体大小选项的选中状态
+                    for act in self.font_actions:
+                        act.setChecked(False)
+                    
+                    # 设置当前选项为选中状态
+                    action.setChecked(True)
+                    
+                    # 更新字体大小
+                    self.font_size = new_size
+                    self.apply_font_settings()
+        except Exception as e:
+            print(f"字体大小改变错误: {e}")
     
-    def apply_font_size(self):
-        """应用新的字体大小"""
-        # 更新接收文本框字体
-        self.receive_text.setFont(QFont("Consolas", self.font_size))
-        
-        # 更新样式表
-        self.receive_text.setStyleSheet(f"""
-            QTextBrowser {{
-                background-color: #1a1a1a;
-                color: #c0c0c0;
-                border: 1px solid #404040;
-                border-radius: 4px;
-                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                font-size: {self.font_size}pt;
-                selection-background-color: #505050;
-                padding: 5px;
-            }}
-        """)
-        
-        # 更新行号显示
-        self.receive_text.update_line_numbers()
+    def apply_font_settings(self):
+        """应用新的字体设置"""
+        try:
+            # 更新接收文本框字体
+            # 使用try-except确保字体不存在时不会崩溃
+            font = QFont(self.font_name, self.font_size)
+            # 检查字体是否有效
+            if font.exactMatch() or font.family() != "":
+                self.receive_text.setFont(font)
+            else:
+                # 如果字体无效，使用默认字体
+                self.receive_text.setFont(QFont("Consolas", self.font_size))
+            
+            # 更新样式表
+            # 确保字体名称中的特殊字符不会导致样式表解析错误
+            safe_font_name = self.font_name.replace('\'', "''")  # 转义单引号
+            self.receive_text.setStyleSheet(f"""
+                QTextBrowser {
+                    background-color: #1a1a1a;
+                    color: #c0c0c0;
+                    border: 1px solid #404040;
+                    border-radius: 4px;
+                    font-family: '{safe_font_name}', 'Consolas', 'Monaco', 'Courier New', monospace;
+                    font-size: {self.font_size}pt;
+                    selection-background-color: #505050;
+                    padding: 5px;
+                }
+            """)
+            
+            # 更新行号显示
+            self.receive_text.update_line_numbers()
+        except Exception as e:
+            # 捕获所有异常，确保应用程序不会崩溃
+            print(f"应用字体设置错误: {e}")
+            # 使用默认字体作为 fallback
+            try:
+                self.receive_text.setFont(QFont("Consolas", self.font_size))
+                self.receive_text.setStyleSheet(f"""
+                    QTextBrowser {
+                        background-color: #1a1a1a;
+                        color: #c0c0c0;
+                        border: 1px solid #404040;
+                        border-radius: 4px;
+                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                        font-size: {self.font_size}pt;
+                        selection-background-color: #505050;
+                        padding: 5px;
+                    }
+                """)
+                self.receive_text.update_line_numbers()
+            except:
+                pass
         
     def refresh_ports(self):
         """刷新可用串口"""
