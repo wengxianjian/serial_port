@@ -543,6 +543,9 @@ class SerialTool(QMainWindow):
         self.font_name = "Consolas"  # 默认字体
         self.font_size = 12  # 默认字体大小改为12pt
         
+        # 主题设置
+        self.current_theme = "dark"  # 默认主题：dark
+        
         # 搜索相关变量
         self.search_text = ""
         self.case_sensitive = False
@@ -1495,6 +1498,30 @@ class SerialTool(QMainWindow):
         # 视图菜单
         view_menu = menubar.addMenu("视图")
         
+        # 主题子菜单
+        theme_menu = view_menu.addMenu("主题")
+        
+        # 存储主题动作列表
+        self.theme_actions = []
+        
+        # 主题选项
+        themes = [("dark", "暗黑主题"), ("light", "浅色主题")]
+        for theme_id, theme_name in themes:
+            theme_action = QAction(theme_name, self)
+            theme_action.setData(theme_id)
+            theme_action.setCheckable(True)
+            
+            # 设置当前默认主题选中状态
+            if theme_id == self.current_theme:
+                theme_action.setChecked(True)
+            
+            # 连接信号
+            theme_action.triggered.connect(self.on_theme_changed)
+            
+            # 添加到菜单和列表
+            theme_menu.addAction(theme_action)
+            self.theme_actions.append(theme_action)
+        
         # 字体菜单
         font_menu = view_menu.addMenu("字体")
         
@@ -1645,6 +1672,54 @@ class SerialTool(QMainWindow):
         except Exception as e:
             print(f"字体大小改变错误: {e}")
     
+    def on_theme_changed(self):
+        """主题改变"""
+        try:
+            action = self.sender()
+            if action and action.isChecked():
+                new_theme = action.data()
+                if new_theme and new_theme != self.current_theme:
+                    # 清除所有主题选项的选中状态
+                    for act in self.theme_actions:
+                        act.setChecked(False)
+                    
+                    # 设置当前选项为选中状态
+                    action.setChecked(True)
+                    
+                    # 更新主题
+                    self.current_theme = new_theme
+                    
+                    # 应用新主题
+                    if new_theme == "dark":
+                        self.apply_simple_dark_theme()
+                    else:
+                        self.apply_light_theme()
+                    
+                    # 更新字体设置以匹配新主题
+                    self.apply_font_settings()
+                    
+                    # 更新接收控制栏样式
+                    if new_theme == "dark":
+                        self.receive_frame.findChild(QFrame).setStyleSheet("""
+                            QFrame {
+                                background-color: #303030;
+                                border: 1px solid #404040;
+                                border-radius: 4px;
+                                padding: 5px;
+                            }
+                        """)
+                    else:
+                        self.receive_frame.findChild(QFrame).setStyleSheet("""
+                            QFrame {
+                                background-color: #f0f0f0;
+                                border: 1px solid #cccccc;
+                                border-radius: 4px;
+                                padding: 5px;
+                            }
+                        """)
+        except Exception as e:
+            print(f"主题改变错误: {e}")
+    
     def apply_font_settings(self):
         """应用新的字体设置"""
         try:
@@ -1661,18 +1736,34 @@ class SerialTool(QMainWindow):
             # 更新样式表
             # 确保字体名称中的特殊字符不会导致样式表解析错误
             safe_font_name = self.font_name.replace('\'', "''")  # 转义单引号
-            self.receive_text.setStyleSheet(f"""
-                QTextBrowser {
-                    background-color: #1a1a1a;
-                    color: #c0c0c0;
-                    border: 1px solid #404040;
-                    border-radius: 4px;
-                    font-family: '{safe_font_name}', 'Consolas', 'Monaco', 'Courier New', monospace;
-                    font-size: {self.font_size}pt;
-                    selection-background-color: #505050;
-                    padding: 5px;
-                }
-            """)
+            
+            # 根据当前主题设置不同的背景和文本颜色
+            if self.current_theme == "dark":
+                self.receive_text.setStyleSheet(f"""
+                    QTextBrowser {
+                        background-color: #1a1a1a;
+                        color: #c0c0c0;
+                        border: 1px solid #404040;
+                        border-radius: 4px;
+                        font-family: '{safe_font_name}', 'Consolas', 'Monaco', 'Courier New', monospace;
+                        font-size: {self.font_size}pt;
+                        selection-background-color: #505050;
+                        padding: 5px;
+                    }
+                """)
+            else:
+                self.receive_text.setStyleSheet(f"""
+                    QTextBrowser {
+                        background-color: #ffffff;
+                        color: #333333;
+                        border: 1px solid #cccccc;
+                        border-radius: 4px;
+                        font-family: '{safe_font_name}', 'Consolas', 'Monaco', 'Courier New', monospace;
+                        font-size: {self.font_size}pt;
+                        selection-background-color: #c0c0c0;
+                        padding: 5px;
+                    }
+                """)
             
             # 更新行号显示
             self.receive_text.update_line_numbers()
@@ -1682,21 +1773,226 @@ class SerialTool(QMainWindow):
             # 使用默认字体作为 fallback
             try:
                 self.receive_text.setFont(QFont("Consolas", self.font_size))
-                self.receive_text.setStyleSheet(f"""
-                    QTextBrowser {
-                        background-color: #1a1a1a;
-                        color: #c0c0c0;
-                        border: 1px solid #404040;
-                        border-radius: 4px;
-                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                        font-size: {self.font_size}pt;
-                        selection-background-color: #505050;
-                        padding: 5px;
-                    }
-                """)
+                if self.current_theme == "dark":
+                    self.receive_text.setStyleSheet(f"""
+                        QTextBrowser {
+                            background-color: #1a1a1a;
+                            color: #c0c0c0;
+                            border: 1px solid #404040;
+                            border-radius: 4px;
+                            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                            font-size: {self.font_size}pt;
+                            selection-background-color: #505050;
+                            padding: 5px;
+                        }
+                    """)
+                else:
+                    self.receive_text.setStyleSheet(f"""
+                        QTextBrowser {
+                            background-color: #ffffff;
+                            color: #333333;
+                            border: 1px solid #cccccc;
+                            border-radius: 4px;
+                            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                            font-size: {self.font_size}pt;
+                            selection-background-color: #c0c0c0;
+                            padding: 5px;
+                        }
+                    """)
                 self.receive_text.update_line_numbers()
             except:
                 pass
+    
+    def apply_light_theme(self):
+        """应用简洁浅色主题"""
+        # 浅灰色调色板
+        light_palette = QPalette()
+        
+        # 基础颜色 - 浅灰色系
+        light_palette.setColor(QPalette.Window, QColor(240, 240, 240))
+        light_palette.setColor(QPalette.WindowText, QColor(50, 50, 50))
+        light_palette.setColor(QPalette.Base, QColor(255, 255, 255))
+        light_palette.setColor(QPalette.AlternateBase, QColor(235, 235, 235))
+        light_palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
+        light_palette.setColor(QPalette.ToolTipText, QColor(50, 50, 50))
+        light_palette.setColor(QPalette.Text, QColor(50, 50, 50))
+        light_palette.setColor(QPalette.Button, QColor(220, 220, 220))
+        light_palette.setColor(QPalette.ButtonText, QColor(50, 50, 50))
+        light_palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
+        light_palette.setColor(QPalette.Link, QColor(0, 0, 255))
+        light_palette.setColor(QPalette.Highlight, QColor(150, 180, 230))
+        light_palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+        
+        # 应用调色板
+        QApplication.setPalette(light_palette)
+        
+        # 设置样式表 - 简洁浅色风格
+        self.setStyleSheet("""
+            /* 主窗口 */
+            QMainWindow {
+                background-color: #f0f0f0;
+            }
+            
+            /* 分组框 */
+            QGroupBox {
+                color: #333333;
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                margin-top: 10px;
+                padding-top: 10px;
+                font-weight: 600;
+                background-color: #f8f8f8;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px 0 8px;
+                color: #666666;
+            }
+            
+            /* 标签 */
+            QLabel {
+                color: #555555;
+                padding: 2px;
+            }
+            
+            /* 输入框 */
+            QLineEdit, QComboBox, QSpinBox, QTextEdit, QTextBrowser {
+                background-color: #ffffff;
+                color: #333333;
+                border: 1px solid #cccccc;
+                border-radius: 3px;
+                padding: 5px;
+                selection-background-color: #c0c0c0;
+            }
+            QLineEdit:focus, QComboBox:focus, QSpinBox:focus {
+                border: 1px solid #999999;
+            }
+            QComboBox::drop-down {
+                border: none;
+                background-color: #f0f0f0;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 1px solid #cccccc;
+                padding: 5px;
+            }
+            
+            /* 按钮 */
+            QPushButton {
+                background-color: #e0e0e0;
+                color: #333333;
+                border: 1px solid #cccccc;
+                border-radius: 3px;
+                padding: 6px 12px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #d0d0d0;
+                border: 1px solid #999999;
+            }
+            QPushButton:pressed {
+                background-color: #c0c0c0;
+                padding: 7px 11px 5px 13px;
+            }
+            QPushButton:disabled {
+                background-color: #f0f0f0;
+                color: #999999;
+                border: 1px solid #dddddd;
+            }
+            
+            /* 状态栏 */
+            QStatusBar {
+                color: #666666;
+                background-color: #f0f0f0;
+                border-top: 1px solid #cccccc;
+            }
+            
+            /* 工具栏 */
+            QToolBar {
+                background-color: #f8f8f8;
+                border: none;
+                border-bottom: 1px solid #cccccc;
+                spacing: 3px;
+                padding: 3px;
+            }
+            QToolBar QToolButton {
+                padding: 5px 8px;
+                border-radius: 3px;
+            }
+            QToolBar QToolButton:hover {
+                background-color: #e0e0e0;
+            }
+            
+            /* 菜单栏 */
+            QMenuBar {
+                background-color: #f8f8f8;
+                color: #555555;
+                border-bottom: 1px solid #cccccc;
+            }
+            QMenuBar::item {
+                padding: 5px 10px;
+                background-color: transparent;
+            }
+            QMenuBar::item:selected {
+                background-color: #e0e0e0;
+                border-radius: 2px;
+            }
+            
+            /* 菜单 */
+            QMenu {
+                background-color: #f8f8f8;
+                color: #555555;
+                border: 1px solid #cccccc;
+                padding: 5px;
+            }
+            QMenu::item {
+                padding: 5px 20px 5px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #e0e0e0;
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: #cccccc;
+                margin: 5px 10px;
+            }
+            
+            /* 滚动条 */
+            QScrollBar:vertical {
+                background-color: #f0f0f0;
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #c0c0c0;
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #a0a0a0;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            
+            QScrollBar:horizontal {
+                background-color: #f0f0f0;
+                height: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:horizontal {
+                background-color: #c0c0c0;
+                border-radius: 6px;
+                min-width: 20px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background-color: #a0a0a0;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px;
+            }
+        """)
         
     def refresh_ports(self):
         """刷新可用串口"""
