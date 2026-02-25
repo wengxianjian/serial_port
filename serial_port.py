@@ -959,6 +959,7 @@ class SerialTool(QMainWindow):
         
         # 搜索标签
         search_label = QLabel("查找:")
+        search_label.setObjectName("search_label")
         search_label.setStyleSheet("color: #aaaaaa;")
         search_layout.addWidget(search_label)
         
@@ -1016,6 +1017,9 @@ class SerialTool(QMainWindow):
         self.status_stats_label = QLabel("状态: 就绪")
         self.status_stats_label.setStyleSheet("color: #a0a0c0; font-weight: 500;")
         stats_layout.addWidget(self.status_stats_label)
+        
+        # 初始化标签颜色（根据当前主题）
+        self.update_stats_labels_color()
         
         stats_layout.addStretch()
         control_layout.addLayout(stats_layout)
@@ -1718,6 +1722,9 @@ class SerialTool(QMainWindow):
                     # 更新行号区域主题
                     self.receive_text.set_theme(new_theme)
                     
+                    # 更新统计标签颜色
+                    self.update_stats_labels_color()
+                    
                     # 更新接收控制栏样式
                     if new_theme == "dark":
                         self.receive_frame.findChild(QFrame).setStyleSheet("""
@@ -1740,6 +1747,32 @@ class SerialTool(QMainWindow):
         except Exception as e:
             print(f"主题改变错误: {e}")
     
+    def update_stats_labels_color(self):
+        """更新统计标签的颜色"""
+        try:
+            if self.current_theme == "dark":
+                # 暗黑主题颜色
+                self.buffer_stats_label.setStyleSheet("color: #a0a0c0;")
+                self.status_stats_label.setStyleSheet("color: #a0a0c0; font-weight: 500;")
+                self.receive_stats_label.setStyleSheet("color: #a0c0a0;")
+                self.send_stats_label.setStyleSheet("color: #a0c0a0;")
+                self.search_result_label.setStyleSheet("color: #a0c0a0; min-width: 120px; font-weight: 500;")
+                search_label = self.findChild(QLabel, "search_label")
+                if search_label:
+                    search_label.setStyleSheet("color: #aaaaaa;")
+            else:
+                # 浅色主题颜色
+                self.buffer_stats_label.setStyleSheet("color: #666666;")
+                self.status_stats_label.setStyleSheet("color: #666666; font-weight: 500;")
+                self.receive_stats_label.setStyleSheet("color: #666666;")
+                self.send_stats_label.setStyleSheet("color: #666666;")
+                self.search_result_label.setStyleSheet("color: #666666; min-width: 120px; font-weight: 500;")
+                search_label = self.findChild(QLabel, "search_label")
+                if search_label:
+                    search_label.setStyleSheet("color: #555555;")
+        except Exception as e:
+            print(f"更新统计标签颜色错误: {e}")
+    
     def apply_font_settings(self):
         """应用新的字体设置"""
         try:
@@ -1760,7 +1793,7 @@ class SerialTool(QMainWindow):
             # 根据当前主题设置不同的背景和文本颜色
             if self.current_theme == "dark":
                 self.receive_text.setStyleSheet(f"""
-                    QTextBrowser {
+                    QTextBrowser {{
                         background-color: #1a1a1a;
                         color: #c0c0c0;
                         border: 1px solid #404040;
@@ -1769,11 +1802,11 @@ class SerialTool(QMainWindow):
                         font-size: {self.font_size}pt;
                         selection-background-color: #505050;
                         padding: 5px;
-                    }
+                    }}
                 """)
             else:
                 self.receive_text.setStyleSheet(f"""
-                    QTextBrowser {
+                    QTextBrowser {{
                         background-color: #ffffff;
                         color: #333333;
                         border: 1px solid #cccccc;
@@ -1782,20 +1815,22 @@ class SerialTool(QMainWindow):
                         font-size: {self.font_size}pt;
                         selection-background-color: #c0c0c0;
                         padding: 5px;
-                    }
+                    }}
                 """)
             
             # 更新行号显示
             self.receive_text.update_line_numbers()
         except Exception as e:
             # 捕获所有异常，确保应用程序不会崩溃
+            import traceback
             print(f"应用字体设置错误: {e}")
+            print(f"错误堆栈: {traceback.format_exc()}")
             # 使用默认字体作为 fallback
             try:
                 self.receive_text.setFont(QFont("Consolas", self.font_size))
                 if self.current_theme == "dark":
                     self.receive_text.setStyleSheet(f"""
-                        QTextBrowser {
+                        QTextBrowser {{
                             background-color: #1a1a1a;
                             color: #c0c0c0;
                             border: 1px solid #404040;
@@ -1804,11 +1839,11 @@ class SerialTool(QMainWindow):
                             font-size: {self.font_size}pt;
                             selection-background-color: #505050;
                             padding: 5px;
-                        }
+                        }}
                     """)
                 else:
                     self.receive_text.setStyleSheet(f"""
-                        QTextBrowser {
+                        QTextBrowser {{
                             background-color: #ffffff;
                             color: #333333;
                             border: 1px solid #cccccc;
@@ -1817,7 +1852,7 @@ class SerialTool(QMainWindow):
                             font-size: {self.font_size}pt;
                             selection-background-color: #c0c0c0;
                             padding: 5px;
-                        }
+                        }}
                     """)
                 self.receive_text.update_line_numbers()
             except:
