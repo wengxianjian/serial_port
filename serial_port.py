@@ -904,10 +904,10 @@ class SerialTool(QMainWindow):
         self.receive_text = CustomTextBrowser()
         self.receive_text.setFont(QFont("Consolas", self.font_size))
         
-        # 连接文本选择信号
-        self.receive_text.text_selected.connect(self.on_text_selected)
-        # 连接选择清除信号
-        self.receive_text.selection_cleared.connect(self.on_selection_cleared)
+        # 连接文本选中信号 - 已注释，禁用鼠标选中自动高亮功能
+        # self.receive_text.text_selected.connect(self.on_text_selected)
+        # 连接选择清除信号 - 已注释，禁用鼠标选中自动高亮功能
+        # self.receive_text.selection_cleared.connect(self.on_selection_cleared)
         
         # 设置语法高亮
         self.highlighter = LogHighlighter(self.receive_text.document())
