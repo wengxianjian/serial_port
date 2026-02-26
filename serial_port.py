@@ -49,18 +49,23 @@ class LineNumberArea(QWidget):
     def set_theme(self, theme):
         """设置主题"""
         self.current_theme = theme
+        
+        # 根据主题设置背景色样式
+        if theme == "dark":
+            self.setStyleSheet("background-color: #2d2d2d;")
+        else:
+            self.setStyleSheet("background-color: #e0e0e0;")
+        
         self.update()  # 触发重绘
         
     def paintEvent(self, event):
         painter = QPainter(self)
         
-        # 根据主题设置行号背景色和文字颜色
+        # 根据主题设置文字颜色（背景色由stylesheet控制）
         if self.current_theme == "dark":
-            painter.fillRect(event.rect(), QColor("#2d2d2d"))  # 暗黑主题行号背景色
             painter.setPen(QColor("#808080"))  # 暗黑主题行号文字颜色
         else:
-            painter.fillRect(event.rect(), QColor("#e0e0e0"))  # 浅色主题行号背景色
-            painter.setPen(QColor("#808080"))  # 浅色主题行号文字颜色
+            painter.setPen(QColor("#a0a0a0"))  # 浅色主题行号文字颜色
         
         # 获取字体
         font = self.text_browser.font()
@@ -1807,7 +1812,7 @@ class SerialTool(QMainWindow):
             else:
                 self.receive_text.setStyleSheet(f"""
                     QTextBrowser {{
-                        background-color: #ffffff;
+                        background-color: #f5f5f5;
                         color: #333333;
                         border: 1px solid #cccccc;
                         border-radius: 4px;
@@ -1844,7 +1849,7 @@ class SerialTool(QMainWindow):
                 else:
                     self.receive_text.setStyleSheet(f"""
                         QTextBrowser {{
-                            background-color: #ffffff;
+                            background-color: #f5f5f5;
                             color: #333333;
                             border: 1px solid #cccccc;
                             border-radius: 4px;
@@ -1866,17 +1871,17 @@ class SerialTool(QMainWindow):
         # 基础颜色 - 浅灰色系
         light_palette.setColor(QPalette.Window, QColor(240, 240, 240))
         light_palette.setColor(QPalette.WindowText, QColor(50, 50, 50))
-        light_palette.setColor(QPalette.Base, QColor(255, 255, 255))
+        light_palette.setColor(QPalette.Base, QColor(245, 245, 245))
         light_palette.setColor(QPalette.AlternateBase, QColor(235, 235, 235))
-        light_palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
+        light_palette.setColor(QPalette.ToolTipBase, QColor(245, 245, 245))
         light_palette.setColor(QPalette.ToolTipText, QColor(50, 50, 50))
         light_palette.setColor(QPalette.Text, QColor(50, 50, 50))
         light_palette.setColor(QPalette.Button, QColor(220, 220, 220))
         light_palette.setColor(QPalette.ButtonText, QColor(50, 50, 50))
         light_palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-        light_palette.setColor(QPalette.Link, QColor(0, 0, 255))
-        light_palette.setColor(QPalette.Highlight, QColor(150, 180, 230))
-        light_palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+        light_palette.setColor(QPalette.Link, QColor(100, 100, 100))
+        light_palette.setColor(QPalette.Highlight, QColor(200, 200, 200))
+        light_palette.setColor(QPalette.HighlightedText, QColor(50, 50, 50))
         
         # 应用调色板
         QApplication.setPalette(light_palette)
@@ -1913,7 +1918,7 @@ class SerialTool(QMainWindow):
             
             /* 输入框 */
             QLineEdit, QComboBox, QSpinBox, QTextEdit, QTextBrowser {
-                background-color: #ffffff;
+                background-color: #f5f5f5;
                 color: #333333;
                 border: 1px solid #cccccc;
                 border-radius: 3px;
