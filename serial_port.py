@@ -520,7 +520,8 @@ class SerialTool(QMainWindow):
             0,
         )
         self.reconnect_timer.timeout.connect(self.auto_reconnect)
-        self.max_reconnect = 3
+        self.max_reconnect = 9999  # 增加最大重连次数
+        self.reconnect_dialog = None  # 重连弹窗
         self.receive_count = self.send_count = 0
         self.receive_buffer = self.send_buffer = bytearray()
         self.repeat_timer = QTimer()
@@ -544,6 +545,9 @@ class SerialTool(QMainWindow):
         self.port_refresh_timer = QTimer()
         self.port_refresh_timer.timeout.connect(self.refresh_ports)
         self.port_refresh_timer.start(2000)
+        
+        # 延迟自动连接串口
+        QTimer.singleShot(500, self.auto_connect_serial)
 
     def setup_icon(self):
         for icon_path in [
@@ -1199,6 +1203,10 @@ class SerialTool(QMainWindow):
             self.send_btn.setEnabled(True)
             self.status_stats_label.setText(f"已连接到 {port}")
             self.reconnect_count = 0
+            # 连接成功，关闭重连弹窗
+            if self.reconnect_dialog:
+                self.reconnect_dialog.close()
+                self.reconnect_dialog = None
         except Exception as e:
             QMessageBox.critical(self, "连接错误", f"无法连接到串口: {str(e)}")
             self.status_stats_label.setText("连接失败")
@@ -1213,6 +1221,10 @@ class SerialTool(QMainWindow):
         self.connect_action.setText("连接")
         self.send_btn.setEnabled(False)
         self.status_stats_label.setText("已断开连接")
+        # 断开连接时关闭重连弹窗
+        if self.reconnect_dialog:
+            self.reconnect_dialog.close()
+            self.reconnect_dialog = None
 
     def on_data_received(self, data):
         if self.pause_display_cb.isChecked():
@@ -1269,16 +1281,40 @@ class SerialTool(QMainWindow):
             self.receive_text.setTextCursor(cursor)
 
     def on_serial_error(self, error_msg):
-        self.status_stats_label.setText(f"错误: {error_msg[:20]}...")
-        if self.reconnect_count < self.max_reconnect:
-            self.reconnect_count += 1
-            self.status_stats_label.setText(
-                f"重连({self.reconnect_count}/{self.max_reconnect})..."
-            )
-            self.reconnect_timer.singleShot(1000, self.auto_reconnect)
-        else:
-            self.disconnect_serial()
-            QMessageBox.warning(self, "连接错误", f"串口连接失败: {error_msg}")
+        # 先断开连接，确保状态正确更新
+        self.disconnect_serial()
+        
+        # 区分端口被占用和串口不存在的情况
+        if not self.reconnect_dialog:
+            from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
+            self.reconnect_dialog = QDialog(self)
+            
+            # 判断错误类型
+            if "PermissionError" in error_msg or "access denied" in error_msg.lower() or "could not open port" in error_msg.lower():
+                # 端口被占用
+                self.reconnect_dialog.setWindowTitle("端口被占用")
+                error_text = "端口被占用，无法连接\n\n请检查后点击重连"
+            else:
+                # 串口不存在或其他错误
+                self.reconnect_dialog.setWindowTitle("无可用串口")
+                error_text = "串口不存在或已拔出\n\n请检查后点击重连"
+            
+            self.reconnect_dialog.setWindowModality(Qt.WindowModal)
+            self.reconnect_dialog.setMinimumWidth(280)
+            
+            layout = QVBoxLayout(self.reconnect_dialog)
+            layout.setSpacing(10)
+            
+            error_label = QLabel(error_text)
+            error_label.setWordWrap(True)
+            error_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(error_label)
+            
+            reconnect_btn = QPushButton("重连")
+            reconnect_btn.clicked.connect(self.on_manual_reconnect)
+            layout.addWidget(reconnect_btn)
+            
+            self.reconnect_dialog.show()
 
     def auto_reconnect(self):
         if self.serial_thread and self.serial_thread.isRunning():
@@ -1286,6 +1322,82 @@ class SerialTool(QMainWindow):
         self.disconnect_serial()
         time.sleep(0.5)
         self.connect_serial()
+
+    def on_manual_reconnect(self):
+        """用户点击重连按钮"""
+        if self.reconnect_dialog:
+            self.reconnect_dialog.close()
+            self.reconnect_dialog = None
+        self.disconnect_serial()
+        time.sleep(0.5)
+        self.connect_serial()
+
+    def auto_connect_serial(self):
+        """应用启动时自动连接串口"""
+        # 检查是否有可用串口
+        if self.port_combo.count() == 0:
+            QMessageBox.warning(self, "无可用串口", "未检测到可用串口设备，请检查连接后手动刷新。")
+            return
+        
+        # 尝试连接第一个可用串口
+        port = self.port_combo.currentData()
+        if not port:
+            QMessageBox.warning(self, "连接失败", "无法获取串口信息，请手动选择串口并连接。")
+            return
+        
+        try:
+            baudrate, bytesize, stopbits, parity = self.get_serial_params()
+            timeout = self.buffer_settings.get("receive_timeout", 1.0)
+            self.serial_thread = SerialThread(
+                port, baudrate, bytesize, stopbits, parity, timeout
+            )
+            self.serial_thread.data_received.connect(self.on_data_received)
+            self.serial_thread.error_occurred.connect(self.on_serial_error)
+            self.serial_thread.start()
+            self.connect_btn.setText("断开")
+            self.connect_action.setText("断开")
+            self.send_btn.setEnabled(True)
+            self.status_stats_label.setText(f"已连接到 {port}")
+            self.reconnect_count = 0
+            # 连接成功，关闭重连弹窗
+            if self.reconnect_dialog:
+                self.reconnect_dialog.close()
+                self.reconnect_dialog = None
+        except Exception as e:
+            # 显示重连弹窗，等待用户手动重连
+            if not self.reconnect_dialog:
+                from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
+                self.reconnect_dialog = QDialog(self)
+                
+                # 判断错误类型
+                error_msg = str(e)
+                if "PermissionError" in error_msg or "access denied" in error_msg.lower() or "could not open port" in error_msg.lower():
+                    # 端口被占用
+                    self.reconnect_dialog.setWindowTitle("端口被占用")
+                    error_text = "端口被占用，无法连接\n\n请检查后点击重连"
+                else:
+                    # 串口不存在或其他错误
+                    self.reconnect_dialog.setWindowTitle("无可用串口")
+                    error_text = "串口不存在或已拔出\n\n请检查后点击重连"
+                
+                self.reconnect_dialog.setWindowModality(Qt.WindowModal)
+                self.reconnect_dialog.setMinimumWidth(280)
+                
+                layout = QVBoxLayout(self.reconnect_dialog)
+                layout.setSpacing(10)
+                
+                error_label = QLabel(error_text)
+                error_label.setWordWrap(True)
+                error_label.setAlignment(Qt.AlignCenter)
+                layout.addWidget(error_label)
+                
+                reconnect_btn = QPushButton("重连")
+                reconnect_btn.clicked.connect(self.on_manual_reconnect)
+                layout.addWidget(reconnect_btn)
+                
+                self.reconnect_dialog.show()
+
+
 
     def send_data(self):
         if not self.serial_thread or not self.serial_thread.isRunning():
