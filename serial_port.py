@@ -288,12 +288,7 @@ class CustomTextBrowser(QTextBrowser):
     def process_selection(self):
         cursor = self.textCursor()
         if cursor.hasSelection():
-            selected_text = (
-                cursor.selectedText().replace("\u2029", "").replace("\u2028", "")
-            )
-            for i in range(32):
-                selected_text = selected_text.replace(chr(i), "")
-            selected_text = selected_text.strip()
+            selected_text = cursor.selectedText()
             if selected_text and selected_text != self.last_selection:
                 self.last_selection = selected_text
                 self.text_selected.emit(selected_text)
