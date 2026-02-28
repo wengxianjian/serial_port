@@ -512,7 +512,13 @@ class SerialTool(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"Log tool v{VERSION}")
-        self.resize(1200, 800)
+        
+        # 获取屏幕可用大小，拉伸到满屏但不是最大化
+        screen = QApplication.desktop().availableGeometry()
+        self.setGeometry(screen)
+        
+        # 确保窗口不是最大化状态
+        self.showNormal()
 
         self.serial_thread, self.reconnect_timer, self.reconnect_count = (
             None,
