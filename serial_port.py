@@ -228,16 +228,18 @@ class LogHighlighter(QSyntaxHighlighter):
         self.highlight_all = True  # 是否高亮所有匹配项，还是只高亮当前选中的
         self.current_match_start = -1  # 当前选中匹配项的起始位置
         self.current_match_end = -1    # 当前选中匹配项的结束位置
-        
-        # 普通高亮格式（用于所有匹配项）
+
+        # 普通高亮格式（用于所有匹配项）- 使用更明显的黄色
         self.highlight_format = QTextCharFormat()
-        self.highlight_format.setBackground(QColor(200, 150, 0, 150))  # 黄色半透明背景
-        self.highlight_format.setForeground(QColor(255, 255, 200))    # 浅黄色文字
-        
-        # 当前选中项的高亮格式（用于当前选中的文本）
+        self.highlight_format.setBackground(QColor(255, 255, 0, 180))  # 亮黄色半透明背景
+        self.highlight_format.setForeground(QColor(0, 0, 0))          # 黑色文字，提高对比度
+        self.highlight_format.setFontWeight(QFont.Bold)               # 加粗显示
+
+        # 当前选中项的高亮格式（用于当前选中的文本）- 使用橙色区分
         self.current_match_format = QTextCharFormat()
-        self.current_match_format.setBackground(QColor(135, 206, 250, 150))  # 浅蓝色半透明背景
-        self.current_match_format.setForeground(QColor(255, 255, 255))    # 白色文字
+        self.current_match_format.setBackground(QColor(255, 165, 0, 200))  # 橙色半透明背景
+        self.current_match_format.setForeground(QColor(0, 0, 0))          # 黑色文字
+        self.current_match_format.setFontWeight(QFont.Bold)               # 加粗显示
         
     def set_search_pattern(self, pattern, case_sensitive=False):
         """设置搜索模式"""
@@ -520,7 +522,7 @@ class SerialThread(QThread):
 class SerialTool(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Log tool v1.2")
+        self.setWindowTitle("Log tool v1.3")
         self.resize(1200, 800)
         
         # 设置图标
@@ -552,7 +554,18 @@ class SerialTool(QMainWindow):
         # 数据缓冲区
         self.receive_buffer = bytearray()
         self.send_buffer = bytearray()
-        
+
+        # 性能优化：数据批量处理
+        self.display_buffer = []  # 显示数据缓冲区
+        self.display_buffer_lock = threading.Lock()  # 显示缓冲区锁
+        self.max_display_lines = 5000  # 最大显示行数限制
+        self.lines_count = 0  # 当前行数统计
+
+        # 批量更新定时器
+        self.update_timer = QTimer()
+        self.update_timer.timeout.connect(self.flush_display_buffer)
+        self.update_timer.start(50)  # 每50ms批量更新一次
+
         # 配置区域显示状态
         self.config_visible = True
         
@@ -637,8 +650,8 @@ class SerialTool(QMainWindow):
         self.setCentralWidget(central_widget)
         
         self.main_layout = QVBoxLayout(central_widget)
-        self.main_layout.setSpacing(5)
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setSpacing(0)
+        self.main_layout.setContentsMargins(8, 0, 8, 5)
         
         # 应用简洁暗黑主题
         self.apply_simple_dark_theme()
@@ -689,16 +702,19 @@ class SerialTool(QMainWindow):
                 color: #cccccc;
                 border: 1px solid #404040;
                 border-radius: 4px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 12px;
+                padding-top: 8px;
                 font-weight: 600;
                 background-color: #303030;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 10px;
-                padding: 0 8px 0 8px;
+                padding: 0 8px;
                 color: #aaaaaa;
+                subcontrol-position: top left;
+                margin-top: -10px;
+                background-color: #303030;
             }
             
             /* 标签 */
@@ -783,12 +799,14 @@ class SerialTool(QMainWindow):
                 background-color: #303030;
                 border: none;
                 border-bottom: 1px solid #404040;
-                spacing: 3px;
-                padding: 3px;
+                spacing: 2px;
+                padding: 1px 3px;
+                margin: 0px;
             }
             QToolBar QToolButton {
-                padding: 5px 8px;
+                padding: 3px 6px;
                 border-radius: 3px;
+                margin: 0px;
             }
             QToolBar QToolButton:hover {
                 background-color: #404040;
@@ -870,47 +888,22 @@ class SerialTool(QMainWindow):
         toolbar.setMovable(False)
         toolbar.setIconSize(QSize(16, 16))
         self.addToolBar(toolbar)
-        
-        # 显示/隐藏配置区域按钮
-        self.toggle_config_action = QAction("显示配置", self)
-        self.toggle_config_action.setCheckable(True)
-        self.toggle_config_action.setChecked(True)
-        self.toggle_config_action.triggered.connect(self.toggle_config_area)
-        toolbar.addAction(self.toggle_config_action)
-        
-        toolbar.addSeparator()
-        
-        # 连接/断开按钮
-        self.connect_action = QAction("连接", self)
-        self.connect_action.triggered.connect(self.toggle_connection)
-        toolbar.addAction(self.connect_action)
-        
-        toolbar.addSeparator()
-        
-        # 清除接收
-        clear_rx_action = QAction("清除接收", self)
-        clear_rx_action.triggered.connect(self.clear_receive)
-        toolbar.addAction(clear_rx_action)
-        
-        toolbar.addSeparator()
-        
-        # 保存接收数据
-        save_rx_action = QAction("保存接收", self)
-        save_rx_action.triggered.connect(self.save_receive_data)
-        toolbar.addAction(save_rx_action)
+
+        # 工具栏仅保留标题或可以留空，主要功能按钮已移至接收区域
+        # 保留工具栏用于未来扩展
         
     def toggle_config_area(self):
         """切换配置区域显示/隐藏"""
         self.config_visible = not self.config_visible
-        
+
         if self.config_visible:
             self.config_frame.show()
-            self.toggle_config_action.setText("隐藏配置")
-            self.toggle_config_action.setChecked(True)
+            self.toggle_config_btn.setText("隐藏")
+            self.toggle_config_btn.setChecked(True)
         else:
             self.config_frame.hide()
-            self.toggle_config_action.setText("显示配置")
-            self.toggle_config_action.setChecked(False)
+            self.toggle_config_btn.setText("显示")
+            self.toggle_config_btn.setChecked(False)
             
     def create_receive_frame(self):
         """创建接收区域 - 上方"""
@@ -918,7 +911,8 @@ class SerialTool(QMainWindow):
         receive_frame.setFrameStyle(QFrame.NoFrame)
         
         layout = QVBoxLayout(receive_frame)
-        layout.setSpacing(5)
+        layout.setSpacing(3)
+        layout.setContentsMargins(0, 2, 0, 0)
         
         # 接收控制栏
         control_frame = QFrame()
@@ -931,98 +925,119 @@ class SerialTool(QMainWindow):
             }
         """)
         control_layout = QHBoxLayout(control_frame)
-        control_layout.setContentsMargins(10, 5, 10, 5)
+        control_layout.setContentsMargins(8, 3, 8, 3)
+        control_layout.setSpacing(6)
         
-        # 控制选项
-        self.timestamp_cb = QCheckBox("时间戳")
+        # 控制选项 - 所有控件放在同一水平行
+
+        # 显示/隐藏配置区域按钮
+        self.toggle_config_btn = QPushButton("隐藏")
+        self.toggle_config_btn.setFixedSize(60, 26)
+        self.toggle_config_btn.setCheckable(True)
+        self.toggle_config_btn.setChecked(True)
+        self.toggle_config_btn.clicked.connect(self.toggle_config_area)
+        control_layout.addWidget(self.toggle_config_btn)
+
+        # 连接/断开按钮
+        self.connect_btn = QPushButton("连接")
+        self.connect_btn.setFixedSize(60, 26)
+        self.connect_btn.clicked.connect(self.toggle_connection)
+        control_layout.addWidget(self.connect_btn)
+
+        # 清除接收按钮
+        self.clear_rx_btn = QPushButton("清除")
+        self.clear_rx_btn.setFixedSize(60, 26)
+        self.clear_rx_btn.clicked.connect(self.clear_receive)
+        control_layout.addWidget(self.clear_rx_btn)
+
+        # 保存接收数据按钮
+        self.save_rx_btn = QPushButton("保存")
+        self.save_rx_btn.setFixedSize(60, 26)
+        self.save_rx_btn.clicked.connect(self.save_receive_data)
+        control_layout.addWidget(self.save_rx_btn)
+
+        # 添加分隔
+        control_layout.addSpacing(10)
+
+        self.timestamp_cb = QCheckBox("时间")
         self.timestamp_cb.setChecked(False)
         control_layout.addWidget(self.timestamp_cb)
-        
-        self.hex_display_cb = QCheckBox("十六进制")
+
+        self.hex_display_cb = QCheckBox("0x")
         control_layout.addWidget(self.hex_display_cb)
-        
-        self.pause_display_cb = QCheckBox("暂停显示")
+
+        self.pause_display_cb = QCheckBox("暂停")
         control_layout.addWidget(self.pause_display_cb)
-        
-        self.line_numbers_cb = QCheckBox("显示行号")
+
+        self.line_numbers_cb = QCheckBox("行号")
         self.line_numbers_cb.setChecked(False)
         self.line_numbers_cb.stateChanged.connect(self.on_line_numbers_changed)
         control_layout.addWidget(self.line_numbers_cb)
-        
-        self.auto_scroll_cb = QCheckBox("自动滚屏")
+
+        self.auto_scroll_cb = QCheckBox("滚屏")
         self.auto_scroll_cb.setChecked(True)
         control_layout.addWidget(self.auto_scroll_cb)
-        
-        # 搜索栏
-        search_layout = QHBoxLayout()
-        search_layout.setSpacing(5)
-        
-        # 搜索标签
-        search_label = QLabel("查找:")
-        search_label.setObjectName("search_label")
-        search_label.setStyleSheet("color: #aaaaaa;")
-        search_layout.addWidget(search_label)
-        
+
+        # 添加分隔
+        control_layout.addSpacing(15)
+
         # 搜索输入框
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("输入搜索内容...")
-        self.search_input.setMaximumWidth(200)
+        self.search_input.setPlaceholderText("内容...")
+        self.search_input.setMaximumWidth(100)
+        self.search_input.setFixedHeight(26)
         self.search_input.textChanged.connect(self.on_search_text_changed)
         self.search_input.returnPressed.connect(self.find_next)
-        search_layout.addWidget(self.search_input)
-        
-        # 搜索结果标签
-        self.search_result_label = QLabel("")
-        self.search_result_label.setStyleSheet("color: #a0c0a0; min-width: 120px; font-weight: 500;")
-        search_layout.addWidget(self.search_result_label)
-        
+        control_layout.addWidget(self.search_input)
+
         # 大小写敏感复选框
-        self.case_sensitive_cb = QCheckBox("区分大小写")
+        self.case_sensitive_cb = QCheckBox("A")
         self.case_sensitive_cb.setChecked(False)
         self.case_sensitive_cb.stateChanged.connect(self.on_case_sensitive_changed)
-        search_layout.addWidget(self.case_sensitive_cb)
-        
+        control_layout.addWidget(self.case_sensitive_cb)
+
         # 查找上一个按钮
-        self.find_prev_btn = QPushButton("上")
-        self.find_prev_btn.setFixedWidth(40)  # 缩小按钮宽度
+        self.find_prev_btn = QPushButton("↑")
+        self.find_prev_btn.setFixedSize(32, 26)
         self.find_prev_btn.clicked.connect(self.find_previous)
         self.find_prev_btn.setEnabled(False)
-        search_layout.addWidget(self.find_prev_btn)
-        
+        control_layout.addWidget(self.find_prev_btn)
+
         # 查找下一个按钮
-        self.find_next_btn = QPushButton("下")
-        self.find_next_btn.setFixedWidth(40)  # 缩小按钮宽度
+        self.find_next_btn = QPushButton("↓")
+        self.find_next_btn.setFixedSize(32, 26)
         self.find_next_btn.clicked.connect(self.find_next)
         self.find_next_btn.setEnabled(False)
-        search_layout.addWidget(self.find_next_btn)
-        
-        search_layout.addStretch()
-        control_layout.addLayout(search_layout)
-        
+        control_layout.addWidget(self.find_next_btn)
+
+        # 搜索结果标签
+        self.search_result_label = QLabel("")
+        self.search_result_label.setStyleSheet("color: #a0c0a0; min-width: 80px; font-weight: 500;")
+        control_layout.addWidget(self.search_result_label)
+
+        # 添加弹性空间
+        control_layout.addStretch()
+
         # 统计信息
-        stats_layout = QHBoxLayout()
         self.receive_stats_label = QLabel("接收: 0 字节")
         self.receive_stats_label.setStyleSheet("color: #a0c0a0;")
-        stats_layout.addWidget(self.receive_stats_label)
-        
+        control_layout.addWidget(self.receive_stats_label)
+
         self.send_stats_label = QLabel("发送: 0 字节")
         self.send_stats_label.setStyleSheet("color: #a0c0a0;")
-        stats_layout.addWidget(self.send_stats_label)
-        
+        control_layout.addWidget(self.send_stats_label)
+
         # 缓冲区信息
         self.buffer_stats_label = QLabel("缓冲区: 0/1048576 字节")
         self.buffer_stats_label.setStyleSheet("color: #a0a0c0;")
-        stats_layout.addWidget(self.buffer_stats_label)
-        
+        control_layout.addWidget(self.buffer_stats_label)
+
         self.status_stats_label = QLabel("状态: 就绪")
         self.status_stats_label.setStyleSheet("color: #a0a0c0; font-weight: 500;")
-        stats_layout.addWidget(self.status_stats_label)
-        
+        control_layout.addWidget(self.status_stats_label)
+
         # 初始化标签颜色（根据当前主题）
         self.update_stats_labels_color()
-        
-        stats_layout.addStretch()
-        control_layout.addLayout(stats_layout)
         
         # 接收文本框 - 使用自定义的文本浏览器
         self.receive_text = CustomTextBrowser()
@@ -1107,40 +1122,50 @@ class SerialTool(QMainWindow):
         self.current_search_index = 0
         self.first_click = True
             
+    def clear_search_highlight(self):
+        """清除搜索高亮"""
+        self.highlighter.set_search_pattern("")
+        self.highlighter.set_current_match(-1, -1)
+        self.search_results = []
+        self.current_search_index = 0
+        self.first_click = True
+        self.auto_jump = False
+
     def on_search_text_changed(self, text):
         """搜索文本改变"""
         try:
             # 保存当前滚动位置
             scrollbar = self.receive_text.verticalScrollBar()
             scroll_position = scrollbar.value() if scrollbar else 0
-            
+
             self.search_text = str(text).strip() if text else ""
             if self.search_text:
                 self.find_next_btn.setEnabled(True)
                 self.find_prev_btn.setEnabled(True)
-                
+
                 # 更新高亮 - 手动输入时高亮所有匹配项
                 self.highlighter.set_highlight_all(True)
                 self.highlighter.set_search_pattern(self.search_text, self.case_sensitive_cb.isChecked())
-                    
+
                 # 重置搜索索引
                 self.current_search_index = 0
                 self.first_click = True
-                
+
                 # 查找所有匹配项
                 self.find_all_matches()
-                
+
                 # 恢复滚动位置
                 if scrollbar:
                     scrollbar.setValue(scroll_position)
             else:
+                # 清除搜索状态
                 self.find_next_btn.setEnabled(False)
                 self.find_prev_btn.setEnabled(False)
-                self.highlighter.set_search_pattern("")
+                self.clear_search_highlight()
                 self.search_result_label.setText("")
         except Exception as e:
             print(f"搜索文本改变处理错误: {e}")
-            self.highlighter.set_search_pattern("")
+            self.clear_search_highlight()
             
     def on_case_sensitive_changed(self, state):
         """大小写敏感选项改变"""
@@ -1371,6 +1396,7 @@ class SerialTool(QMainWindow):
         
         layout = QVBoxLayout(config_frame)
         layout.setSpacing(5)
+        layout.setContentsMargins(5, 5, 5, 5)
         
         # 使用分割器将串口配置和发送配置放在一行
         splitter = QSplitter(Qt.Horizontal)
@@ -1392,10 +1418,10 @@ class SerialTool(QMainWindow):
         
     def create_config_group(self):
         """创建串口配置区域"""
-        config_group = QGroupBox("串口配置")
+        config_group = QGroupBox("")
         layout = QGridLayout()
         layout.setSpacing(8)
-        layout.setContentsMargins(10, 15, 10, 10)
+        layout.setContentsMargins(12, 10, 12, 10)
         
         # 第一行：端口选择
         layout.addWidget(QLabel("端口:"), 0, 0)
@@ -1463,10 +1489,10 @@ class SerialTool(QMainWindow):
         
     def create_send_group(self):
         """创建发送区域"""
-        send_group = QGroupBox("发送数据")
+        send_group = QGroupBox("")
         layout = QVBoxLayout()
         layout.setSpacing(8)
-        layout.setContentsMargins(10, 15, 10, 10)
+        layout.setContentsMargins(12, 10, 12, 10)
         
         # 发送文本框
         self.send_text = QTextEdit()
@@ -1756,20 +1782,14 @@ class SerialTool(QMainWindow):
                 self.status_stats_label.setStyleSheet("color: #a0a0c0; font-weight: 500;")
                 self.receive_stats_label.setStyleSheet("color: #a0c0a0;")
                 self.send_stats_label.setStyleSheet("color: #a0c0a0;")
-                self.search_result_label.setStyleSheet("color: #a0c0a0; min-width: 120px; font-weight: 500;")
-                search_label = self.findChild(QLabel, "search_label")
-                if search_label:
-                    search_label.setStyleSheet("color: #aaaaaa;")
+                self.search_result_label.setStyleSheet("color: #a0c0a0; min-width: 80px; font-weight: 500;")
             else:
                 # 浅色主题颜色
                 self.buffer_stats_label.setStyleSheet("color: #666666;")
                 self.status_stats_label.setStyleSheet("color: #666666; font-weight: 500;")
                 self.receive_stats_label.setStyleSheet("color: #666666;")
                 self.send_stats_label.setStyleSheet("color: #666666;")
-                self.search_result_label.setStyleSheet("color: #666666; min-width: 120px; font-weight: 500;")
-                search_label = self.findChild(QLabel, "search_label")
-                if search_label:
-                    search_label.setStyleSheet("color: #555555;")
+                self.search_result_label.setStyleSheet("color: #666666; min-width: 80px; font-weight: 500;")
         except Exception as e:
             print(f"更新统计标签颜色错误: {e}")
     
@@ -1893,16 +1913,19 @@ class SerialTool(QMainWindow):
                 color: #333333;
                 border: 1px solid #cccccc;
                 border-radius: 4px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 12px;
+                padding-top: 8px;
                 font-weight: 600;
                 background-color: #f8f8f8;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 10px;
-                padding: 0 8px 0 8px;
+                padding: 0 8px;
                 color: #666666;
+                subcontrol-position: top left;
+                margin-top: -10px;
+                background-color: #f8f8f8;
             }
             
             /* 标签 */
@@ -1968,12 +1991,14 @@ class SerialTool(QMainWindow):
                 background-color: #f8f8f8;
                 border: none;
                 border-bottom: 1px solid #cccccc;
-                spacing: 3px;
-                padding: 3px;
+                spacing: 2px;
+                padding: 1px 3px;
+                margin: 0px;
             }
             QToolBar QToolButton {
-                padding: 5px 8px;
+                padding: 3px 6px;
                 border-radius: 3px;
+                margin: 0px;
             }
             QToolBar QToolButton:hover {
                 background-color: #e0e0e0;
@@ -2155,7 +2180,6 @@ class SerialTool(QMainWindow):
             
             # 更新UI状态
             self.connect_btn.setText("断开")
-            self.connect_action.setText("断开")
             self.send_btn.setEnabled(True)
             self.status_stats_label.setText(f"已连接到 {port}")
             
@@ -2178,15 +2202,14 @@ class SerialTool(QMainWindow):
             
         # 更新UI状态
         self.connect_btn.setText("连接")
-        self.connect_action.setText("连接")
         self.send_btn.setEnabled(False)
         self.status_stats_label.setText("已断开连接")
         
     def on_data_received(self, data):
-        """接收数据回调"""
+        """接收数据回调 - 优化版本，使用批量处理"""
         if self.pause_display_cb.isChecked():
             return
-            
+
         # 检查缓冲区大小
         max_buffer_size = self.buffer_settings.get('receive_buffer', 1024 * 1024)  # 1MB
         if len(self.receive_buffer) + len(data) > max_buffer_size:
@@ -2196,19 +2219,19 @@ class SerialTool(QMainWindow):
                 self.receive_buffer = self.receive_buffer[discard_size:]
             else:
                 self.receive_buffer = bytearray()
-        
+
         # 添加到缓冲区
         self.receive_buffer.extend(data)
-        
+
         # 更新接收计数
         self.receive_count += len(data)
         self.receive_stats_label.setText(f"接收: {self.receive_count} 字节")
-        
+
         # 更新缓冲区信息
         buffer_bytes = len(self.receive_buffer)
         max_buffer_bytes = max_buffer_size
         self.buffer_stats_label.setText(f"缓冲区: {buffer_bytes}/{max_buffer_bytes} 字节")
-        
+
         # 格式化数据
         if self.hex_display_cb.isChecked():
             # 十六进制显示
@@ -2220,37 +2243,90 @@ class SerialTool(QMainWindow):
                 display_text = data.decode('utf-8', errors='replace')
             except:
                 display_text = data.hex(' ')
-                
+
         # 添加时间戳
         if self.timestamp_cb.isChecked():
             timestamp = datetime.now().strftime("[%H:%M:%S.%f")[:-3] + "] "
             display_text = timestamp + display_text
-            
-        # 保存当前滚动位置
+
+        # 将数据添加到显示缓冲区（线程安全）
+        with self.display_buffer_lock:
+            self.display_buffer.append(display_text)
+
+    def flush_display_buffer(self):
+        """批量刷新显示缓冲区 - 性能优化"""
+        # 获取缓冲区数据（线程安全）
+        with self.display_buffer_lock:
+            if not self.display_buffer:
+                return
+            buffer_data = self.display_buffer.copy()
+            self.display_buffer.clear()
+
+        # 合并所有数据
+        display_text = ''.join(buffer_data)
+        if not display_text:
+            return
+
+        # 计算新增行数
+        new_lines = display_text.count('\n')
+
+        # 检查是否需要清理旧数据（超过最大行数限制）
+        if self.lines_count + new_lines > self.max_display_lines:
+            self._trim_display_content()
+
+        # 保存当前滚动位置和是否处于底部
         scrollbar = self.receive_text.verticalScrollBar()
-        scroll_position = scrollbar.value() if scrollbar else 0
-        
-        # 添加到显示区域 - 使用insertPlainText避免自动添加换行符，只保留数据本身的换行
+        is_at_bottom = False
+        scroll_position = 0
+        if scrollbar:
+            scroll_position = scrollbar.value()
+            is_at_bottom = (scrollbar.value() >= scrollbar.maximum() - 20)
+
+        # 批量插入文本
         cursor = self.receive_text.textCursor()
         cursor.movePosition(QTextCursor.End)
+        cursor.beginEditBlock()  # 开始批量编辑，减少重绘
         cursor.insertText(display_text)
-        
+        cursor.endEditBlock()  # 结束批量编辑
+
+        # 更新行数统计
+        self.lines_count += new_lines
+
         # 如果有搜索文本，重新应用高亮
         if self.search_text:
             try:
                 self.highlighter.set_search_pattern(self.search_text, self.case_sensitive_cb.isChecked())
             except Exception as e:
                 print(f"重新应用高亮错误: {e}")
-            
-        # 恢复滚动位置
-        if scrollbar:
+
+        # 恢复滚动位置或自动滚屏
+        if self.auto_scroll_cb.isChecked() or is_at_bottom:
+            scrollbar.setValue(scrollbar.maximum())
+        else:
             scrollbar.setValue(scroll_position)
-            
-        # 自动滚屏
-        if self.auto_scroll_cb.isChecked():
+
+    def _trim_display_content(self):
+        """清理旧数据，保持显示行数在限制范围内"""
+        try:
             cursor = self.receive_text.textCursor()
-            cursor.movePosition(QTextCursor.End)
-            self.receive_text.setTextCursor(cursor)
+            doc = self.receive_text.document()
+            total_blocks = doc.blockCount()
+
+            # 如果总行数超过限制，删除前面的行
+            if total_blocks > self.max_display_lines:
+                lines_to_remove = total_blocks - self.max_display_lines + 1000  # 多删除1000行作为缓冲
+
+                cursor.beginEditBlock()
+                cursor.movePosition(QTextCursor.Start)
+                for _ in range(lines_to_remove):
+                    cursor.movePosition(QTextCursor.NextBlock, QTextCursor.KeepAnchor)
+                cursor.removeSelectedText()
+                cursor.endEditBlock()
+
+                # 更新行数统计
+                self.lines_count = doc.blockCount()
+        except Exception as e:
+            print(f"清理显示内容错误: {e}")
             
     def on_serial_error(self, error_msg):
         """串口错误回调"""
@@ -2322,12 +2398,23 @@ class SerialTool(QMainWindow):
         self.receive_text.clear()
         self.receive_count = 0
         self.receive_buffer = bytearray()
+        self.lines_count = 0  # 重置行数统计
+
+        # 清空显示缓冲区
+        with self.display_buffer_lock:
+            self.display_buffer.clear()
+
         self.receive_stats_label.setText("接收: 0 字节")
-        
+
         # 更新缓冲区信息
         max_buffer_size = self.buffer_settings.get('receive_buffer', 1024 * 1024)  # 1MB
         self.buffer_stats_label.setText(f"缓冲区: 0/{max_buffer_size} 字节")
-        
+
+        # 清除搜索高亮
+        self.clear_search_highlight()
+        self.search_input.clear()
+        self.search_result_label.setText("")
+
         # 更新行号显示
         self.receive_text.update_line_numbers()
         
@@ -2444,14 +2531,22 @@ class SerialTool(QMainWindow):
             <li><b>多种字体选择（Consolas、Monaco等）</b></li>
             <li><b>主题切换（暗黑主题/浅色主题）</b></li>
         </ul>
-        <p style="color: #cccccc;"><b>搜索功能:</b></p>
+        <p style="color: #cccccc;"><b>搜索功能（v1.3优化）:</b></p>
         <ul style="color: #aaaaaa;">
             <li>在接收控制栏添加搜索框</li>
             <li>支持查找上一个/下一个（F3/Shift+F3）</li>
             <li>支持区分大小写搜索</li>
-            <li>支持高亮所有匹配项</li>
-            <li>选中文本自动填充到搜索框</li>
+            <li><b>黄色高亮显示所有匹配项</b></li>
+            <li><b>橙色高亮显示当前选中匹配项</b></li>
             <li>显示搜索结果数量</li>
+            <li>清除数据时自动清除高亮</li>
+        </ul>
+        <p style="color: #cccccc;"><b>性能优化（v1.3新增）:</b></p>
+        <ul style="color: #aaaaaa;">
+            <li><b>批量数据处理机制</b> - 每50ms批量更新UI</li>
+            <li><b>最大显示行数限制</b> - 默认5000行，自动清理旧数据</li>
+            <li><b>优化DOM操作</b> - 使用beginEditBlock/endEditBlock减少重排重绘</li>
+            <li><b>支持10000+条log数据流畅显示</b></li>
         </ul>
         <p style="color: #cccccc;"><b>字体设置:</b></p>
         <ul style="color: #aaaaaa;">
@@ -2500,13 +2595,17 @@ class SerialTool(QMainWindow):
         
     def closeEvent(self, event):
         """关闭窗口事件"""
+        # 停止更新定时器
+        if hasattr(self, 'update_timer') and self.update_timer.isActive():
+            self.update_timer.stop()
+
         if self.serial_thread and self.serial_thread.isRunning():
             reply = QMessageBox.question(
                 self, '确认退出',
                 '串口正在连接，确定要退出吗？',
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No
             )
-            
+
             if reply == QMessageBox.Yes:
                 self.disconnect_serial()
                 event.accept()
