@@ -103,7 +103,7 @@ FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24]
 # ==================== 主题样式 ====================
 
 DARK_THEME = """
-QMainWindow { background-color: #282828; }
+QMainWindow { background-color: #282828; padding: 0px; margin: 0px; }
 QGroupBox { color: #cccccc; border: 1px solid #404040; border-radius: 4px; margin-top: 10px; padding-top: 10px; font-weight: 600; background-color: #303030; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 8px; color: #aaaaaa; }
 QLabel { color: #bbbbbb; padding: 2px; }
@@ -113,8 +113,8 @@ QPushButton:hover { background-color: #606060; border: 1px solid #707070; }
 QPushButton:pressed { background-color: #404040; }
 QPushButton:disabled { background-color: #303030; color: #888888; border: 1px solid #404040; }
 QCheckBox { color: #bbbbbb; spacing: 5px; }
-QToolBar { background-color: #303030; border: none; border-bottom: 1px solid #404040; }
-QMenuBar { background-color: #303030; color: #bbbbbb; border-bottom: 1px solid #404040; }
+QToolBar { background-color: #303030; border: none; border-bottom: 1px solid #404040; padding: 0px; margin: 0px; }
+QMenuBar { background-color: #303030; color: #bbbbbb; border-bottom: 1px solid #404040; padding: 0px; margin: 0px; }
 QMenu { background-color: #303030; color: #bbbbbb; border: 404040; }
 1px solid #QScrollBar:vertical { background-color: #252525; width: 12px; border-radius: 6px; }
 QScrollBar::handle:vertical { background-color: #606060; border-radius: 6px; min-height: 20px; }
@@ -123,7 +123,7 @@ QScrollBar::handle:horizontal { background-color: #606060; border-radius: 6px; m
 """
 
 LIGHT_THEME = """
-QMainWindow { background-color: #f0f0f0; }
+QMainWindow { background-color: #f0f0f0; padding: 0px; margin: 0px; }
 QGroupBox { color: #333333; border: 1px solid #cccccc; border-radius: 4px; margin-top: 10px; padding-top: 10px; font-weight: 600; background-color: #f8f8f8; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 8px; color: #666666; }
 QLabel { color: #555555; padding: 2px; }
@@ -133,8 +133,8 @@ QPushButton:hover { background-color: #d0d0d0; border: 1px solid #999999; }
 QPushButton:pressed { background-color: #c0c0c0; }
 QPushButton:disabled { background-color: #f0f0f0; color: #999999; border: 1px solid #dddddd; }
 QCheckBox { color: #555555; spacing: 5px; }
-QToolBar { background-color: #f8f8f8; border: none; border-bottom: 1px solid #cccccc; }
-QMenuBar { background-color: #f8f8f8; color: #555555; border-bottom: 1px solid #cccccc; }
+QToolBar { background-color: #f8f8f8; border: none; border-bottom: 1px solid #cccccc; padding: 0px; margin: 0px; }
+QMenuBar { background-color: #f8f8f8; color: #555555; border-bottom: 1px solid #cccccc; padding: 0px; margin: 0px; }
 QMenu { background-color: #f8f8f8; color: #555555; border: 1px solid #cccccc; }
 QScrollBar:vertical { background-color: #f0f0f0; width: 12px; border-radius: 6px; }
 QScrollBar::handle:vertical { background-color: #c0c0c0; border-radius: 6px; min-height: 20px; }
@@ -578,8 +578,8 @@ class SerialTool(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         self.main_layout = QVBoxLayout(central_widget)
-        self.main_layout.setSpacing(5)
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setSpacing(3)
+        self.main_layout.setContentsMargins(6, 0, 6, 6)
         self.apply_theme(self.current_theme)
         self.setup_toolbar()
         self.receive_frame = self.create_receive_frame()
@@ -592,24 +592,6 @@ class SerialTool(QMainWindow):
         toolbar.setMovable(False)
         toolbar.setIconSize(QSize(16, 16))
         self.addToolBar(toolbar)
-
-        self.toggle_config_action = QAction(
-            "显示配置",
-            self,
-            checkable=True,
-            checked=True,
-            triggered=self.toggle_config_area,
-        )
-        toolbar.addAction(self.toggle_config_action)
-        toolbar.addSeparator()
-
-        self.connect_action = QAction("连接", self, triggered=self.toggle_connection)
-        toolbar.addAction(self.connect_action)
-        toolbar.addSeparator()
-
-        toolbar.addAction(QAction("清除接收", self, triggered=self.clear_receive))
-        toolbar.addSeparator()
-        toolbar.addAction(QAction("保存接收", self, triggered=self.save_receive_data))
 
     def apply_theme(self, theme):
         self.current_theme = theme
@@ -654,7 +636,8 @@ class SerialTool(QMainWindow):
         receive_frame = QFrame()
         receive_frame.setFrameStyle(QFrame.NoFrame)
         layout = QVBoxLayout(receive_frame)
-        layout.setSpacing(5)
+        layout.setSpacing(2)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.create_control_frame())
         self.receive_text = CustomTextBrowser()
         self.receive_text.setFont(QFont(self.font_name, self.font_size))
@@ -668,22 +651,50 @@ class SerialTool(QMainWindow):
         bg = "#303030" if self.current_theme == "dark" else "#f0f0f0"
         border = "#404040" if self.current_theme == "dark" else "#cccccc"
         control_frame.setStyleSheet(
-            f"QFrame {{ background-color: {bg}; border: 1px solid {border}; border-radius: 4px; padding: 5px; }}"
+            f"QFrame {{ background-color: {bg}; border: 1px solid {border}; border-radius: 4px; padding: 3px; }}"
+            f"QCheckBox {{ spacing: 3px; }}"
+            f"QLineEdit {{ max-width: 100px; }}"
+            f"QLabel {{ padding: 0px; }}"
         )
 
         layout = QHBoxLayout(control_frame)
-        layout.setContentsMargins(10, 5, 10, 5)
-        layout.setSpacing(10)
+        layout.setContentsMargins(6, 2, 6, 2)
+        layout.setSpacing(6)
 
-        options_layout = QHBoxLayout()
-        options_layout.setSpacing(10)
-        self.timestamp_cb = QCheckBox("时间戳")
-        self.hex_display_cb = QCheckBox("十六进制")
-        self.pause_display_cb = QCheckBox("暂停显示")
-        self.line_numbers_cb = QCheckBox("显示行号")
+        # 主操作按钮组
+        self.toggle_config_btn = QPushButton("显示")
+        self.toggle_config_btn.setCheckable(True)
+        self.toggle_config_btn.setChecked(True)
+        self.toggle_config_btn.clicked.connect(self.toggle_config_area)
+        layout.addWidget(self.toggle_config_btn)
+
+        self.connect_btn2 = QPushButton("连接")
+        self.connect_btn2.clicked.connect(self.toggle_connection)
+        layout.addWidget(self.connect_btn2)
+
+        self.clear_btn = QPushButton("清除")
+        self.clear_btn.clicked.connect(self.clear_receive)
+        layout.addWidget(self.clear_btn)
+
+        self.save_btn = QPushButton("保存")
+        self.save_btn.clicked.connect(self.save_receive_data)
+        layout.addWidget(self.save_btn)
+
+        # 添加分隔线
+        separator0 = QFrame()
+        separator0.setFrameShape(QFrame.VLine)
+        separator0.setStyleSheet(f"color: {border};")
+        layout.addWidget(separator0)
+
+        # 选项复选框组
+        self.timestamp_cb = QCheckBox("时间")
+        self.hex_display_cb = QCheckBox("0x")
+        self.pause_display_cb = QCheckBox("暂停")
+        self.line_numbers_cb = QCheckBox("行号")
         self.line_numbers_cb.stateChanged.connect(self.on_line_numbers_changed)
-        self.auto_scroll_cb = QCheckBox("自动滚屏")
+        self.auto_scroll_cb = QCheckBox("滚屏")
         self.auto_scroll_cb.setChecked(True)
+
         for cb in [
             self.timestamp_cb,
             self.hex_display_cb,
@@ -691,55 +702,79 @@ class SerialTool(QMainWindow):
             self.line_numbers_cb,
             self.auto_scroll_cb,
         ]:
-            options_layout.addWidget(cb)
-        layout.addLayout(options_layout)
+            layout.addWidget(cb)
 
-        layout.addLayout(self.create_search_layout())
-        layout.addLayout(self.create_stats_layout())
-        return control_frame
+        # 添加分隔线
+        separator1 = QFrame()
+        separator1.setFrameShape(QFrame.VLine)
+        separator1.setStyleSheet(f"color: {border};")
+        layout.addWidget(separator1)
 
-    def create_search_layout(self):
-        search_layout = QHBoxLayout()
-        search_layout.setSpacing(5)
+        # 搜索区域
         search_label = QLabel("查找:")
         search_label.setObjectName("search_label")
-        search_layout.addWidget(search_label)
+        layout.addWidget(search_label)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("输入搜索内容...")
-        self.search_input.setMaximumWidth(200)
+        self.search_input.setPlaceholderText("内容...")
+        self.search_input.setFixedWidth(80)
         self.search_input.textChanged.connect(self.on_search_text_changed)
         self.search_input.returnPressed.connect(self.find_next)
-        search_layout.addWidget(self.search_input)
+        layout.addWidget(self.search_input)
+
+        self.case_sensitive_cb = QCheckBox("A")
+        self.case_sensitive_cb.setToolTip("区分大小写")
+        self.case_sensitive_cb.stateChanged.connect(self.on_case_sensitive_changed)
+        layout.addWidget(self.case_sensitive_cb)
+
+        arrow_btn_style = (
+            "QPushButton {"
+            "  background-color: #505050;"
+            "  color: #dddddd;"
+            "  border: 1px solid #606060;"
+            "  border-radius: 3px;"
+            "  font-size: 12px;"
+            "  font-weight: bold;"
+            "  padding: 0px;"
+            "  line-height: 1;"
+            "}"
+            "QPushButton:hover { background-color: #606060; border: 1px solid #707070; }"
+            "QPushButton:pressed { background-color: #404040; }"
+            "QPushButton:disabled { background-color: #303030; color: #666666; border: 1px solid #404040; }"
+        )
+
+        self.find_prev_btn = QPushButton("▲")
+        self.find_prev_btn.setFixedSize(26, 22)
+        self.find_prev_btn.setStyleSheet(arrow_btn_style)
+        self.find_prev_btn.setToolTip("查找上一个 (Shift+F3)")
+        self.find_prev_btn.clicked.connect(self.find_previous)
+        self.find_prev_btn.setEnabled(False)
+        layout.addWidget(self.find_prev_btn)
+
+        self.find_next_btn = QPushButton("▼")
+        self.find_next_btn.setFixedSize(26, 22)
+        self.find_next_btn.setStyleSheet(arrow_btn_style)
+        self.find_next_btn.setToolTip("查找下一个 (F3)")
+        self.find_next_btn.clicked.connect(self.find_next)
+        self.find_next_btn.setEnabled(False)
+        layout.addWidget(self.find_next_btn)
 
         self.search_result_label = QLabel("")
         self.search_result_label.setStyleSheet(
-            "color: #a0c0a0; min-width: 120px; font-weight: 500;"
+            "color: #a0c0a0; min-width: 60px; font-weight: 500;"
         )
-        search_layout.addWidget(self.search_result_label)
+        layout.addWidget(self.search_result_label)
 
-        self.case_sensitive_cb = QCheckBox("区分大小写")
-        self.case_sensitive_cb.stateChanged.connect(self.on_case_sensitive_changed)
-        search_layout.addWidget(self.case_sensitive_cb)
+        # 添加分隔线
+        separator2 = QFrame()
+        separator2.setFrameShape(QFrame.VLine)
+        separator2.setStyleSheet(f"color: {border};")
+        layout.addWidget(separator2)
 
-        self.find_prev_btn = QPushButton("上")
-        self.find_prev_btn.setFixedWidth(40)
-        self.find_prev_btn.clicked.connect(self.find_previous)
-        self.find_prev_btn.setEnabled(False)
-        search_layout.addWidget(self.find_prev_btn)
+        # 添加弹性空间，将统计信息推到右侧
+        layout.addStretch(1)
 
-        self.find_next_btn = QPushButton("下")
-        self.find_next_btn.setFixedWidth(40)
-        self.find_next_btn.clicked.connect(self.find_next)
-        self.find_next_btn.setEnabled(False)
-        search_layout.addWidget(self.find_next_btn)
-
-        search_layout.addStretch()
-        return search_layout
-
-    def create_stats_layout(self):
-        stats_layout = QHBoxLayout()
-        stats_layout.setSpacing(10)
+        # 统计信息
         self.receive_stats_label = QLabel("接收: 0 字节")
         self.send_stats_label = QLabel("发送: 0 字节")
         self.buffer_stats_label = QLabel("缓冲区: 0/1048576 字节")
@@ -756,15 +791,16 @@ class SerialTool(QMainWindow):
             self.buffer_stats_label,
             self.status_stats_label,
         ]:
-            stats_layout.addWidget(lbl)
-        stats_layout.addStretch()
-        return stats_layout
+            layout.addWidget(lbl)
+
+        return control_frame
 
     def create_config_frame(self):
         config_frame = QFrame()
         config_frame.setFrameStyle(QFrame.NoFrame)
         layout = QVBoxLayout(config_frame)
-        layout.setSpacing(5)
+        layout.setSpacing(3)
+        layout.setContentsMargins(0, 0, 0, 0)
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(self.create_config_group())
         splitter.addWidget(self.create_send_group())
@@ -775,8 +811,8 @@ class SerialTool(QMainWindow):
     def create_config_group(self):
         config_group = QGroupBox("")
         layout = QGridLayout()
-        layout.setSpacing(8)
-        layout.setContentsMargins(10, 15, 10, 10)
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 10, 8, 8)
 
         layout.addWidget(QLabel("端口:"), 0, 0)
         self.port_combo = QComboBox()
@@ -828,15 +864,15 @@ class SerialTool(QMainWindow):
     def create_send_group(self):
         send_group = QGroupBox("")
         layout = QVBoxLayout()
-        layout.setSpacing(8)
-        layout.setContentsMargins(10, 15, 10, 10)
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 10, 8, 8)
 
         self.send_text = QTextEdit()
         self.send_text.setPlaceholderText("输入要发送的数据...")
         layout.addWidget(self.send_text, 2)
 
         options_layout = QGridLayout()
-        options_layout.setSpacing(10)
+        options_layout.setSpacing(6)
 
         self.send_btn = QPushButton("发送")
         self.send_btn.setEnabled(False)
@@ -948,12 +984,12 @@ class SerialTool(QMainWindow):
         self.config_visible = not self.config_visible
         if self.config_visible:
             self.config_frame.show()
-            self.toggle_config_action.setText("隐藏配置")
-            self.toggle_config_action.setChecked(True)
+            self.toggle_config_btn.setText("隐藏")
+            self.toggle_config_btn.setChecked(True)
         else:
             self.config_frame.hide()
-            self.toggle_config_action.setText("显示配置")
-            self.toggle_config_action.setChecked(False)
+            self.toggle_config_btn.setText("显示")
+            self.toggle_config_btn.setChecked(False)
 
     def on_theme_changed(self):
         action = self.sender()
@@ -1205,7 +1241,7 @@ class SerialTool(QMainWindow):
             self.serial_thread.error_occurred.connect(self.on_serial_error)
             self.serial_thread.start()
             self.connect_btn.setText("断开")
-            self.connect_action.setText("断开")
+            self.connect_btn2.setText("断开")
             self.send_btn.setEnabled(True)
             self.status_stats_label.setText(f"已连接到 {port}")
             self.reconnect_count = 0
@@ -1224,7 +1260,7 @@ class SerialTool(QMainWindow):
         if self.repeat_timer.isActive():
             self.repeat_timer.stop()
         self.connect_btn.setText("连接")
-        self.connect_action.setText("连接")
+        self.connect_btn2.setText("连接")
         self.send_btn.setEnabled(False)
         self.status_stats_label.setText("已断开连接")
         # 断开连接时关闭重连弹窗
@@ -1361,7 +1397,7 @@ class SerialTool(QMainWindow):
             self.serial_thread.error_occurred.connect(self.on_serial_error)
             self.serial_thread.start()
             self.connect_btn.setText("断开")
-            self.connect_action.setText("断开")
+            self.connect_btn2.setText("断开")
             self.send_btn.setEnabled(True)
             self.status_stats_label.setText(f"已连接到 {port}")
             self.reconnect_count = 0
